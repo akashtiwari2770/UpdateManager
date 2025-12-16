@@ -370,14 +370,6 @@ func NewRouter(services *service.ServiceFactory) *Router {
 						tenantHandler.GetTenantStatistics(w, r)
 						return
 					}
-					
-					func (r *Router) Handler() http.Handler {
-						handler := http.Handler(r.mux)
-						handler = middleware.RecoveryMiddleware(handler)
-						handler = middleware.LoggingMiddleware(handler)
-						handler = middleware.CORSMiddleware(handler)
-						return handler
-					}
 
 
 					// GET/PUT/DELETE /api/v1/customers/:customer_id/tenants/:tenant_id
