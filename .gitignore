@@ -14,11 +14,11 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Ignore Office temporary files (Fixes your error!)
+# Ignore Office temporary files
 ~$*.pptx
 ~$*.docx
 *.tmp
 
-# Ignore Go binaries
+# Ignore Go binaries (FIXED)
 server.exe
-server
+src/backend/server
