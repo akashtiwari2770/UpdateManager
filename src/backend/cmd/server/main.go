@@ -17,8 +17,19 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Connect to MongoDB
+	// 1. Load the default config (localhost)
 	cfg := database.DefaultConfig()
+
+	// 2. CHECK FOR CLOUD CONFIG (This is the fix!)
+	// If Render provides a MONGODB_URI, we use that instead of localhost
+	if uri := os.Getenv("MONGODB_URI"); uri != "" {
+		cfg.URI = uri
+	}
+	if dbName := os.Getenv("MONGODB_DATABASE"); dbName != "" {
+		cfg.Database = dbName
+	}
+
+	// 3. Now Connect
 	db, err := database.Connect(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
@@ -36,7 +47,7 @@ func main() {
 	handler := r.Handler()
 
 	// Start server
-	port := os.Getenv("PORT")
+	port := os.Getenv("PORT") // Render sets this automatically to 10000 or similar
 	if port == "" {
 		port = "8080"
 	}
@@ -52,8 +63,6 @@ func main() {
 	// Start server in goroutine
 	go func() {
 		log.Printf("Server starting on port %s", port)
-		log.Printf("API available at http://localhost:%s/api/v1", port)
-		log.Printf("Health check at http://localhost:%s/health", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed to start: %v", err)
 		}
