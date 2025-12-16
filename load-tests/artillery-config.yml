@@ -1,0 +1,144 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 2
+      name: "Warm up"
+    # Ramp up phase
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 20
+      name: "Ramp up"
+    # Sustained load phase
+    - duration: 120
+      arrivalRate: 20
+      name: "Sustained load"
+    # Spike test phase
+    - duration: 30
+      arrivalRate: 50
+      name: "Spike test"
+    # Cool down phase
+    - duration: 30
+      arrivalRate: 5
+      name: "Cool down"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-User-ID: "load-test-user"
+      X-User-Email: "loadtest@example.com"
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      stripQueryString: true
+
+scenarios:
+  # Health check scenario - lightweight
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  # Product listing - read-heavy
+  - name: "List Products"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/v1/products?page=1&limit=10"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  # Get active products
+  - name: "Get Active Products"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/products/active"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  # Create product - write operation
+  - name: "Create Product"
+    weight: 5
+    flow:
+      - post:
+          url: "/api/v1/products"
+          json:
+            product_id: "{{ $randomString() }}-{{ $timestamp }}"
+            name: "Load Test Product {{ $timestamp }}"
+            type: "server"
+            description: "Product created during load test"
+            vendor: "Load Test Vendor"
+          capture:
+            - json: "$.data.id"
+              as: "productId"
+            - json: "$.data.product_id"
+              as: "productIdString"
+          expect:
+            - statusCode: [201, 409]  # 409 if duplicate
+            - contentType: json
+      - think: 1
+
+  # Get product by ID
+  - name: "Get Product"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/v1/products/{{ productId }}"
+          expect:
+            - statusCode: [200, 404]
+            - contentType: json
+
+  # Version operations
+  - name: "List Versions"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/v1/products/{{ productIdString }}/versions"
+          expect:
+            - statusCode: [200, 404]
+
+  # Notification operations
+  - name: "Get Notifications"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/v1/notifications?recipient_id=load-test-user"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  - name: "Get Unread Count"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/v1/notifications/unread-count?recipient_id=load-test-user"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  # Audit logs
+  - name: "Get Audit Logs"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/v1/audit-logs?page=1&limit=20"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  # Compatibility matrix
+  - name: "List Compatibility"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/v1/compatibility?page=1&limit=10"
+          expect:
+            - statusCode: 200
+            - contentType: json
+

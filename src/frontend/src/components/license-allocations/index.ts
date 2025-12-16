@@ -1,0 +1,2 @@
+export { AllocateLicenseForm } from './AllocateLicenseForm';
+

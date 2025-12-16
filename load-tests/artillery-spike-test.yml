@@ -1,0 +1,56 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    # Normal load
+    - duration: 30
+      arrivalRate: 10
+      name: "Normal load"
+    # Sudden spike
+    - duration: 10
+      arrivalRate: 200
+      name: "Spike"
+    # Recovery
+    - duration: 30
+      arrivalRate: 10
+      name: "Recovery"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-User-ID: "spike-test-user"
+      X-User-Email: "spiketest@example.com"
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      stripQueryString: true
+
+scenarios:
+  # Health check - should handle spike well
+  - name: "Health Check"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+            - maxResponseTime: 100
+
+  # Product listing
+  - name: "List Products"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/v1/products?page=1&limit=10"
+          expect:
+            - statusCode: 200
+            - maxResponseTime: 2000  # Allow more time during spike
+
+  # Get active products
+  - name: "Get Active Products"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/v1/products/active"
+          expect:
+            - statusCode: 200
+            - maxResponseTime: 2000
+

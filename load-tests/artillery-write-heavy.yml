@@ -1,0 +1,116 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Write-heavy load"
+    - duration: 30
+      arrivalRate: 2
+      name: "Cool down"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-User-ID: "load-test-writer"
+      X-User-Email: "loadtest-writer@example.com"
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      stripQueryString: true
+  processor: "./processor.js"
+
+scenarios:
+  # Create product
+  - name: "Create Product"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/v1/products"
+          json:
+            product_id: "load-test-product-{{ $randomString() }}-{{ $timestamp }}"
+            name: "Load Test Product {{ $timestamp }}"
+            type: "{{ $pick(['server', 'client']) }}"
+            description: "Product created during write load test"
+            vendor: "Load Test Vendor"
+          capture:
+            - json: "$.data.id"
+              as: "productId"
+            - json: "$.data.product_id"
+              as: "productIdString"
+          expect:
+            - statusCode: [201, 409]
+            - contentType: json
+            - maxResponseTime: 1000
+      - think: 1
+
+  # Create version
+  - name: "Create Version"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/v1/products/{{ productIdString }}/versions"
+          json:
+            version_number: "{{ $randomInt(1, 10) }}.{{ $randomInt(0, 9) }}.{{ $randomInt(0, 9) }}"
+            release_type: "{{ $pick(['major', 'minor', 'patch', 'feature', 'security']) }}"
+            release_date: "{{ $timestamp }}"
+          capture:
+            - json: "$.data.id"
+              as: "versionId"
+            - json: "$.data.version_number"
+              as: "versionNumber"
+          expect:
+            - statusCode: [201, 404, 409]
+            - contentType: json
+      - think: 1
+
+  # Create notification
+  - name: "Create Notification"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/v1/notifications"
+          json:
+            recipient_id: "load-test-writer"
+            title: "Load Test Notification {{ $timestamp }}"
+            message: "This is a notification created during load testing"
+            type: "{{ $pick(['info', 'warning', 'error', 'success']) }}"
+            is_read: false
+          expect:
+            - statusCode: 201
+            - contentType: json
+      - think: 1
+
+  # Create update detection
+  - name: "Create Update Detection"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/v1/update-detections"
+          json:
+            endpoint_id: "endpoint-{{ $randomString() }}"
+            product_id: "{{ productIdString }}"
+            current_version: "{{ $randomInt(1, 5) }}.0.0"
+            last_checked: "{{ $timestamp }}"
+          expect:
+            - statusCode: [201, 404]
+            - contentType: json
+      - think: 1
+
+  # Create upgrade path
+  - name: "Create Upgrade Path"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/v1/products/{{ productIdString }}/upgrade-paths"
+          json:
+            from_version: "{{ $randomInt(1, 5) }}.0.0"
+            to_version: "{{ $randomInt(6, 10) }}.0.0"
+            is_blocked: false
+            notes: "Upgrade path created during load test"
+          expect:
+            - statusCode: [201, 404, 409]
+            - contentType: json
+      - think: 1
+
