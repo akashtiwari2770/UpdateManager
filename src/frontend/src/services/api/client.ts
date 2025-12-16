@@ -6,7 +6,7 @@ import { ErrorResponse } from '@/types';
 const isDevelopment = import.meta.env.DEV;
 const API_BASE_URL = isDevelopment 
   ? '' // Use relative path to leverage Vite proxy
-  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080');
+  : (import.meta.env.VITE_API_BASE_URL || 'https://updatemanager.onrender.com');
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 class ApiClient {
